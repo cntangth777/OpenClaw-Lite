@@ -1,8 +1,0 @@
-fastapi
-uvicorn
-python-telegram-bot
-openai
-playwright
-beautifulsoup4
-python-multipart
-jinja2
