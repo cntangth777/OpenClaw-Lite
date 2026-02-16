@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat - OpenClaw-Lite</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="chat-container">
+            <div class="chat-header">
+                <h2>🦞 JiazhengBot</h2>
+                <div class="actions">
+                    <a href="/admin" class="btn btn-sm"><i class="fas fa-cog"></i> Settings</a>
+                    <a href="/logout" style="margin-left: 10px; color: #dc3545;"><i class="fas fa-sign-out-alt"></i></a>
+                </div>
+            </div>
+
+            <div id="chat-messages" class="chat-messages">
+                <!-- Messages will be loaded here -->
+                <div class="message system">Welcome! I am JiazhengBot. You can ask me to browse the web for you.</div>
+            </div>
+
+            <div class="chat-input-area">
+                <input type="text" id="user-input" placeholder="Type a message or a URL..." autofocus>
+                <button id="send-btn"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chat-messages');
+        const userInput = document.getElementById('user-input');
+        const sendBtn = document.getElementById('send-btn');
+        let isLoading = false;
+
+        async function loadHistory() {
+            try {
+                const response = await fetch('/api/history');
+                const data = await response.json();
+                if (data.history) {
+                    renderHistory(data.history);
+                }
+            } catch (e) {
+                console.error("Failed to load history", e);
+            }
+        }
+
+        function renderHistory(history) {
+            // Clear but keep welcome message if history is empty or just append?
+            // Let's clear and rebuild for simplicity
+            chatMessages.innerHTML = '';
+            if (history.length === 0) {
+                chatMessages.innerHTML = '<div class="message system">Welcome! I am JiazhengBot. You can ask me to browse the web for you.</div>';
+                return;
+            }
+
+            history.forEach(msg => {
+                appendMessage(msg.role, msg.content);
+            });
+            scrollToBottom();
+        }
+
+        function appendMessage(role, content) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            div.textContent = content; // Safe text
+            // If it's system/tool output, maybe parse newlines
+            if (role === 'system' || role === 'assistant') {
+                div.style.whiteSpace = 'pre-wrap';
+            }
+            chatMessages.appendChild(div);
+            scrollToBottom();
+        }
+
+        function scrollToBottom() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text || isLoading) return;
+
+            isLoading = true;
+            userInput.disabled = true;
+            sendBtn.disabled = true;
+            appendMessage('user', text);
+            userInput.value = '';
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: text })
+                });
+                const data = await response.json();
+
+                if (data.error) {
+                    appendMessage('system', 'Error: ' + data.error);
+                } else {
+                    appendMessage('assistant', data.reply);
+                }
+            } catch (e) {
+                appendMessage('system', 'Network Error: ' + e.message);
+            } finally {
+                isLoading = false;
+                userInput.disabled = false;
+                sendBtn.disabled = false;
+                userInput.focus();
+                scrollToBottom();
+            }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Load history on start
+        window.onload = loadHistory;
+
+        // Correct the function def syntax error in this script block
+        // "async def loadHistory()" -> "async function loadHistory()"
+        // I will fix it in the next tool call if I can't overwrite it here.
+        // Wait, I can fix it right now in the string content before sending.
+    </script>
+</body>
+
+</html>

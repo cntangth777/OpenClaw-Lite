@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - OpenClaw-Lite</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        body {
+            font-family: sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            margin-top: 0;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: #555;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .nav {
+            margin-bottom: 20px;
+        }
+
+        .nav a {
+            margin-right: 15px;
+            text-decoration: none;
+            color: #007bff;
+            font-weight: bold;
+        }
+
+        .status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="nav">
+            <a href="/chat">← Back to Chat</a>
+            <a href="/logout" style="float: right; color: red;">Logout</a>
+        </div>
+        <h1>⚙️ Configuration</h1>
+
+        <div id="status-msg" class="status"></div>
+
+        <form id="config-form">
+            <div class="form-group">
+                <label>OpenAI API Base URL</label>
+                <input type="text" name="openai_api_base" value="{{ config.openai_api_base }}">
+            </div>
+
+            <div class="form-group">
+                <label>OpenAI API Key</label>
+                <input type="password" name="openai_api_key" value="{{ config.openai_api_key }}" placeholder="sk-...">
+            </div>
+
+            <div class="form-group">
+                <label>Model Name</label>
+                <select name="model_name">
+                    <option value="gpt-3.5-turbo" {% if config.model_name=='gpt-3.5-turbo' %}selected{% endif %}>
+                        gpt-3.5-turbo</option>
+                    <option value="gpt-4" {% if config.model_name=='gpt-4' %}selected{% endif %}>gpt-4</option>
+                    <option value="claude-3-opus-20240229" {% if config.model_name=='claude-3-opus-20240229'
+                        %}selected{% endif %}>claude-3-opus</option>
+                    <option value="claude-3-sonnet-20240229" {% if config.model_name=='claude-3-sonnet-20240229'
+                        %}selected{% endif %}>claude-3-sonnet</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>System Prompt (Personality)</label>
+                <textarea name="system_prompt">{{ config.system_prompt }}</textarea>
+            </div>
+
+            <hr>
+
+            <div class="form-group">
+                <label>Telegram Bot Token</label>
+                <input type="text" name="telegram_bot_token" value="{{ config.telegram_bot_token }}">
+            </div>
+
+            <div class="form-group">
+                <label>Telegram Webhook URL (Must be HTTPS)</label>
+                <input type="text" name="telegram_webhook_url" value="{{ config.telegram_webhook_url }}"
+                    placeholder="https://your-space-name.hf.space/webhook">
+            </div>
+
+            <hr>
+
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" name="browser_enabled" {% if config.browser_enabled %}checked{% endif %}>
+                    Enable Browser Tool
+                </label>
+            </div>
+
+            <button type="submit">Save Configuration</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('config-form').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const data = {};
+            formData.forEach((value, key) => {
+                if (key === "browser_enabled") {
+                    data[key] = true;
+                } else {
+                    data[key] = value;
+                }
+            });
+            // Handle checkbox unchecked
+            if (!formData.has("browser_enabled")) {
+                data["browser_enabled"] = false;
+            }
+
+            const statusDiv = document.getElementById('status-msg');
+            statusDiv.style.display = 'none';
+            statusDiv.className = 'status';
+
+            try {
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+
+                statusDiv.style.display = 'block';
+                if (result.status === 'success') {
+                    statusDiv.textContent = 'Configuration saved successfully!';
+                    statusDiv.classList.add('success');
+                } else {
+                    statusDiv.textContent = 'Error: ' + JSON.stringify(result);
+                    statusDiv.classList.add('error');
+                }
+            } catch (err) {
+                statusDiv.style.display = 'block';
+                statusDiv.textContent = 'Network Error: ' + err;
+                statusDiv.classList.add('error');
+            }
+        });
+    </script>
+</body>
+
+</html>
